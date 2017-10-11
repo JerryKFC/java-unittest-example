@@ -1,0 +1,116 @@
+<?xml version="1.0"?>
+<project name="Calc" default="compile" basedir=".">
+  <property name="src.main" value="src/main"/>
+  <property name="src.test" value="src/test"/>
+  <!--
+  <property name="lib" value="lib"/>
+  -->
+  <property name="classes" value="classes"/>
+  <property name="testcase" value="TestCalc"/>
+  <property name="report" value="report"/>
+  <property name="report.junit.xml" value="report/junit/xml"/>
+  <property name="report.junit.html" value="report/junit/html"/>
+  <property name="report.cobertura.xml" value="report/cobertura/xml"/>
+  <property name="report.cobertura.html" value="report/cobertura/html"/>
+  <property name="report.instrument" value="report/instrument"/>
+
+  <path id="classpath">
+    <pathelement location="${classes}"/>
+    <!--
+    <fileset dir="${lib}">
+      <include name="*.jar"/>
+    </fileset>
+    -->
+  </path>
+
+  <path id="junit.classpath">
+    <pathelement location="/usr/share/java/junit4.jar"/>
+  </path>
+
+  <path id="cobertura.classpath">
+    <pathelement location="/usr/share/java/cobertura.jar"/>
+  </path>
+
+  <taskdef classpathref="cobertura.classpath" resource="tasks.properties"/>
+
+  <target name="compile">
+    <mkdir dir="${classes}"/>
+
+    <javac srcdir="${src.main}" destdir="${classes}" debug="true"/>
+  </target>
+
+  <target name="test-compile" depends="compile">
+    <javac srcdir="${src.test}" destdir="${classes}">
+      <classpath refid="junit.classpath"/>
+    </javac>
+  </target>
+
+  <target name="test-one" depends="test-compile">
+    <junit fork="yes" haltonfailure="yes">
+      <test name="${testcase}"/>
+      <formatter type="plain" usefile="false"/>
+      <classpath refid="classpath"/>
+      <classpath refid="junit.classpath"/>
+    </junit>
+  </target>
+
+  <target name="test" depends="test-compile">
+    <mkdir dir="${report.junit.xml}"/>
+
+    <junit fork="yes" printsummary="yes" haltonfailure="no">
+      <batchtest fork="yes" todir="${report.junit.xml}" >
+        <fileset dir="${classes}">
+          <include name="**/Test*.class"/>
+        </fileset>
+      </batchtest>
+      <formatter type="xml"/>
+      <classpath refid="classpath"/>
+      <classpath refid="junit.classpath"/>
+    </junit>
+
+    <junitreport todir="${report.junit.xml}">
+      <fileset dir="${report.junit.xml}">
+        <include name="TEST-*.xml"/>
+      </fileset>
+      <report todir="${report.junit.html}"/>
+    </junitreport>
+  </target>
+
+  <target name="coverage" depends="test-compile">
+    <mkdir dir="${report.cobertura.xml}"/>
+
+    <delete file="cobertura.ser"/>
+
+    <cobertura-instrument todir="${report.instrument}">
+      <ignore regex="org.apache.log4j.*"/>
+      <fileset dir="${classes}">
+        <include name="**/*.class"/>
+        <exclude name="**/Test*.class"/>
+      </fileset>
+    </cobertura-instrument>
+
+    <junit fork="yes" printsummary="yes" haltonfailure="no">
+      <batchtest fork="yes" todir="${report.cobertura.xml}" >
+        <fileset dir="${classes}">
+          <include name="**/Test*.class"/>
+        </fileset>
+      </batchtest>
+      <formatter type="xml"/>
+      <!-- instrumented classes should be before the original (uninstrumented) classes -->
+      <classpath location="${report.instrument}"/>
+      <classpath location="${classes}"/>
+      <classpath refid="junit.classpath"/>
+      <classpath refid="cobertura.classpath"/>
+    </junit>
+
+    <cobertura-report srcdir="${src.main}" destdir="${report.cobertura.xml}" format="xml"/>
+    <cobertura-report srcdir="${src.main}" destdir="${report.cobertura.html}" format="html"/>
+
+    <move file="cobertura.ser" todir="${report}"/>
+  </target>
+
+  <target name="clean">
+    <delete dir="${classes}"/>
+    <delete dir="${report}"/>
+  </target>
+</project>
